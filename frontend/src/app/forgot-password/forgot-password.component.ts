@@ -67,6 +67,8 @@ export class ForgotPasswordComponent {
       new: this.passwordControl.value,
       repeat: this.repeatPasswordControl.value
     }).subscribe(() => {
+      // Log password reset
+      this.userService.logEvent('Password reset', 'medium', { email: this.emailControl.value });
       this.error = undefined
       this.translate.get('PASSWORD_SUCCESSFULLY_CHANGED').subscribe((passwordSuccessfullyChanged) => {
         this.confirmation = passwordSuccessfullyChanged

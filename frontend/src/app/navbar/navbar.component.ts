@@ -138,6 +138,13 @@ export class NavbarComponent implements OnInit {
 
   search (value: string) {
     if (value) {
+      // Detect XSS in search value
+      const isXssAttempt = this.isXssAttempt(value);
+      console.log("XSS attempt detected in search value:", isXssAttempt);
+
+      // Log the search
+      this.userService.logEvent('Search', isXssAttempt ? 'high' : 'low', { searchValue: value });
+
       const queryParams = { queryParams: { q: value } }
       this.ngZone.run(async () => await this.router.navigate(['/search'], queryParams))
     } else {
@@ -156,6 +163,7 @@ export class NavbarComponent implements OnInit {
   }
 
   logout () {
+    this.userService.logEvent('Logout', 'low', { email: this.userEmail });
     this.userService.saveLastLoginIp().subscribe((user: any) => { this.noop() }, (err) => { console.log(err) })
     localStorage.removeItem('token')
     this.cookieService.remove('token')
@@ -216,5 +224,10 @@ export class NavbarComponent implements OnInit {
   isAccounting () {
     const payload = this.loginGuard.tokenDecode()
     return payload?.data && payload.data.role === roles.accounting
+  }
+
+  isXssAttempt(input: string): boolean {
+    const xssPattern = /(<script.*?>|<.*?on.*?=.*?>|javascript:|alert\(.*?\))/i;
+    return xssPattern.test(input);
   }
 }

@@ -69,42 +69,67 @@ export class LoginComponent implements OnInit {
     this.formSubmitService.attachEnterKeyHandler('login-form', 'loginButton', () => { this.login() })
   }
 
-  login () {
-    this.user = {}
-    this.user.email = this.emailControl.value
-    this.user.password = this.passwordControl.value
-    this.userService.login(this.user).subscribe((authentication: any) => {
-      localStorage.setItem('token', authentication.token)
-      const expires = new Date()
-      expires.setHours(expires.getHours() + 8)
-      this.cookieService.put('token', authentication.token, { expires })
-      sessionStorage.setItem('bid', authentication.bid)
-      this.basketService.updateNumberOfCartItems()
-      this.userService.isLoggedIn.next(true)
-      this.ngZone.run(async () => await this.router.navigate(['/search']))
-    }, ({ error }) => {
-      if (error.status && error.data && error.status === 'totp_token_required') {
-        localStorage.setItem('totp_tmp_token', error.data.tmpToken)
-        this.ngZone.run(async () => await this.router.navigate(['/2fa/enter']))
-        return
+  login() {
+    this.user = {};
+    this.user.email = this.emailControl.value;
+    this.user.password = this.passwordControl.value;
+
+    console.log("Login attempt info:", { email: this.user.email });
+    // Log the attempt to log in
+    this.userService.logEvent('Login attempt', 'low', { email: this.user.email });
+
+    var isSqlInjection = this.isSqlInjection(this.user.email);
+    console.log("SQL injection detected in email:", isSqlInjection);
+
+    this.userService.login(this.user).subscribe(
+      (authentication: any) => {
+        // Log successful login
+        console.log("Login successful: ", { email: this.user.email });
+        this.userService.logEvent('Login successful', isSqlInjection ? 'high' : 'low', { email: this.user.email });
+
+        localStorage.setItem('token', authentication.token);
+        const expires = new Date();
+        expires.setHours(expires.getHours() + 8);
+        this.cookieService.put('token', authentication.token, { expires });
+        sessionStorage.setItem('bid', authentication.bid);
+        this.basketService.updateNumberOfCartItems();
+        this.userService.isLoggedIn.next(true);
+        this.ngZone.run(async () => await this.router.navigate(['/search']));
+      },
+      ({ error }) => {
+        // Log login error
+        const severity = this.user.email === "admin@juice'sh.op" ? "high" : "medium";
+        this.userService.logEvent('Login error', severity, { email: this.user.email, error: error });
+
+        if (error.status && error.data && error.status === 'totp_token_required') {
+          localStorage.setItem('totp_tmp_token', error.data.tmpToken);
+          this.ngZone.run(async () => await this.router.navigate(['/2fa/enter']));
+          return;
+        }
+        
+        localStorage.removeItem('token');
+        this.cookieService.remove('token');
+        sessionStorage.removeItem('bid');
+        this.error = error;
+        this.userService.isLoggedIn.next(false);
+        this.emailControl.markAsPristine();
+        this.passwordControl.markAsPristine();
       }
-      localStorage.removeItem('token')
-      this.cookieService.remove('token')
-      sessionStorage.removeItem('bid')
-      this.error = error
-      this.userService.isLoggedIn.next(false)
-      this.emailControl.markAsPristine()
-      this.passwordControl.markAsPristine()
-    })
+    );
 
     if (this.rememberMe.value) {
-      localStorage.setItem('email', this.user.email)
+      localStorage.setItem('email', this.user.email);
     } else {
-      localStorage.removeItem('email')
+      localStorage.removeItem('email');
     }
   }
 
   googleLogin () {
     this.windowRefService.nativeWindow.location.replace(`${oauthProviderUrl}?client_id=${this.clientId}&response_type=token&scope=email&redirect_uri=${this.redirectUri}`)
+  }
+
+  isSqlInjection(input: string): boolean {
+    const sqlInjectionPattern = /('|--|;|\b(OR|AND)\b|\bSELECT\b|\bINSERT\b|\bDELETE\b|\bUPDATE\b|\bDROP\b|\bUNION\b)/i;
+    return sqlInjectionPattern.test(input);
   }
 }

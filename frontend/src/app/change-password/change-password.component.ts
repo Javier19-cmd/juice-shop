@@ -48,6 +48,7 @@ export class ChangePasswordComponent {
         this.confirmation = { error: translationId }
       })
       this.resetForm()
+      this.userService.logEvent('Password changed', 'medium', { email: localStorage.getItem('email') });
     }, (error) => {
       console.log(error)
       this.error = error

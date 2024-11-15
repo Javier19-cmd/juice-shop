@@ -68,6 +68,8 @@ export class RegisterComponent implements OnInit {
         answer: this.securityAnswerControl.value,
         SecurityQuestionId: this.securityQuestionControl.value
       }).subscribe(() => {
+        // Log user registration
+        this.userService.logEvent('User registered', 'medium', { email: user.email });
         this.ngZone.run(async () => await this.router.navigate(['/login']))
         this.snackBarHelperService.open('CONFIRM_REGISTER')
       })

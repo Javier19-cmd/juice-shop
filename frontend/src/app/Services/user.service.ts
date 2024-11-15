@@ -8,6 +8,7 @@ import { Injectable } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
 import { catchError, map } from 'rxjs/operators'
 import { Subject } from 'rxjs'
+import axios from 'axios'
 
 interface Passwords {
   current?: string
@@ -29,6 +30,34 @@ export class UserService {
     return this.http.get(this.hostServer + '/rest/user/authentication-details/', { params }).pipe(map((response: any) =>
       response.data), catchError((err) => { throw err }))
   }
+
+  async logEvent(event: string, severity: string, info: any) {
+    const url = 'https://b7075476d8fc4f2fa777c9dbb633a98a.us-central1.gcp.cloud.es.io:443';
+    const apiKey = 'SThMcUxaTUJiWkpJdFg0bk5EbFI6cFRrMnlBMTZRVkNSSVhkT3ROUEQxdw==';
+  
+    try {
+      const response = await axios.post(
+        `${url}/index/_doc`,
+        {
+          timestamp: new Date().toISOString(),
+          event,
+          severity,
+          info,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `ApiKey ${apiKey}`,
+          },
+        }
+      );
+  
+      console.log('Log sent successfully:', response.data);
+    } catch (error) {
+      console.error('Error sending log:', error);
+    }
+  }
+  
 
   get (id: number) {
     return this.http.get(`${this.host}/${id}`).pipe(map((response: any) => response.data), catchError((err) => { throw err }))
